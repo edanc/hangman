@@ -1,0 +1,1452 @@
+
+
+2012-06-05 01:01 src/edu/ucsb/cs56/S12/ernestocojulun/issue774/AePlayWave.java Page 1
+
+
+    1	package edu.ucsb.cs56.S12.ernestocojulun.issue774;
+    2	
+    3	import java.io.File; 
+    4	import java.io.IOException; 
+    5	import javax.sound.sampled.AudioFormat; 
+    6	import javax.sound.sampled.AudioInputStream; 
+    7	import javax.sound.sampled.AudioSystem; 
+    8	import javax.sound.sampled.DataLine; 
+    9	import javax.sound.sampled.FloatControl; 
+   10	import javax.sound.sampled.LineUnavailableException; 
+   11	import javax.sound.sampled.SourceDataLine; 
+   12	import javax.sound.sampled.UnsupportedAudioFileException; 
+   13	import java.net.URL; 
+   14	
+   15	/** Class from anyexample.com of playing Sound File Asychronously
+   16	  
+   17	   From the original website's description (found at
+   18	   <a href="http://www.anyexample.com/programming/java/java_play_wav_sound_file.xml">http://www.anyexample.com/programming/java/java_play_wav_sound_file.xml</a>
+   19	   )
+   20	
+   21	   "Our class extends Java Thread class to be asynchronous. There are two
+   22	   constructors - AePlayWave(String wavfile) with has only one argument -
+   23	   file name, and AePlayWave(String wavfile, Position p), which takes
+   24	   file name and Position constant, either Position.LEFT or
+   25	   Position.RIGHT -- this is simple balance control, which can toggle
+   26	   only left or right channel of stereo sound (useful for storing two
+   27	   different sounds in single wave file).
+   28	   
+   29	   Various javax.sound.sampled classes are used to prepare audio input
+   30	   stream and audio data line. Afterwards, we simply read and write
+   31	   (through 512Kb buffer, which is suitable for most formats) sound data
+   32	   from file to sound device.
+   33	
+   34	
+   35	  @author Adapted from http://www.anyexample.com/programming/java/java_play_wav_sound_file.xml
+   36	  @author P. Conrad (adapted to get resources from JAR file)
+   37	  @version Retrieved by P. Conrad on 06/03/2012
+   38	
+   39	 */
+   40	
+   41	public class AePlayWave extends Thread { 
+   42	 
+   43	    private String filename;
+   44	 
+   45	    private Position curPosition;
+   46	 
+   47	    private final int EXTERNAL_BUFFER_SIZE = 524288; // 128Kb 
+   48	 
+   49	    enum Position { 
+   50	        LEFT, RIGHT, NORMAL
+   51		    };
+   52	 
+   53	    public AePlayWave(String wavfile) { 
+   54	        filename = wavfile;
+   55	        curPosition = Position.NORMAL;
+   56	    } 
+
+
+
+
+
+
+
+2012-06-05 01:01 src/edu/ucsb/cs56/S12/ernestocojulun/issue774/AePlayWave.java Page 2
+
+
+   57	 
+   58	    public AePlayWave(String wavfile, Position p) { 
+   59	        filename = wavfile;
+   60	        curPosition = p;
+   61	    } 
+   62	 
+   63	    public void run() { 
+   64	 
+   65		String fullFileName = "/resources/" + filename;
+   66	
+   67		URL url = null;
+   68		try {
+   69		    url = getClass().getResource(fullFileName);
+   70		} catch (Exception e) {
+   71	            e.printStackTrace();
+   72	            return;
+   73		}
+   74	
+   75		if (url==null) {
+   76		    System.err.println("Error: " + fullFileName + " could not be found through getClass().getResource() (i.e. in the JAR file or classpath)");
+   77		    return;
+   78		}
+   79		
+   80	        AudioInputStream audioInputStream = null;
+   81	        try { 
+   82	            audioInputStream = AudioSystem.getAudioInputStream(url);
+   83	        } catch (UnsupportedAudioFileException e1) { 
+   84	            e1.printStackTrace();
+   85	            return;
+   86	        } catch (IOException e1) { 
+   87	            e1.printStackTrace();
+   88	            return;
+   89	        } 
+   90	 
+   91	        AudioFormat format = audioInputStream.getFormat();
+   92	        SourceDataLine auline = null;
+   93	        DataLine.Info info = new DataLine.Info(SourceDataLine.class, format);
+   94	 
+   95	        try { 
+   96	            auline = (SourceDataLine) AudioSystem.getLine(info);
+   97	            auline.open(format);
+   98	        } catch (LineUnavailableException e) { 
+   99	            e.printStackTrace();
+  100	            return;
+  101	        } catch (Exception e) { 
+  102	            e.printStackTrace();
+  103	            return;
+  104	        } 
+  105	 
+  106	        if (auline.isControlSupported(FloatControl.Type.PAN)) { 
+  107	            FloatControl pan = (FloatControl) auline
+  108			.getControl(FloatControl.Type.PAN);
+  109	            if (curPosition == Position.RIGHT) 
+  110	                pan.setValue(1.0f);
+  111	            else if (curPosition == Position.LEFT) 
+  112	                pan.setValue(-1.0f);
+
+
+
+
+
+
+
+2012-06-05 01:01 src/edu/ucsb/cs56/S12/ernestocojulun/issue774/AePlayWave.java Page 3
+
+
+  113	        } 
+  114	 
+  115	        auline.start();
+  116	        int nBytesRead = 0;
+  117	        byte[] abData = new byte[EXTERNAL_BUFFER_SIZE];
+  118	 
+  119	        try { 
+  120	            while (nBytesRead != -1) { 
+  121	                nBytesRead = audioInputStream.read(abData, 0, abData.length);
+  122	                if (nBytesRead >= 0) 
+  123	                    auline.write(abData, 0, nBytesRead);
+  124	            } 
+  125	        } catch (IOException e) { 
+  126	            e.printStackTrace();
+  127	            return;
+  128	        } finally { 
+  129	            auline.drain();
+  130	            auline.close();
+  131	        } 
+  132	 
+  133	    } 
+  134	} 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+2012-06-04 23:51 src/edu/ucsb/cs56/S12/ernestocojulun/issue774/AlreadyTriedException.java Page 1
+
+
+    1	package edu.ucsb.cs56.S12.ernestocojulun.issue774;
+    2	import java.io.*;
+    3	import java.util.*;
+    4	/**
+    5	AlreadyTriedException  is an exception where it is used to see if the method has been attempted
+    6	
+    7	 */
+    8	
+    9	public class AlreadyTriedException extends Exception {
+   10	    public AlreadyTriedException() {
+   11		super();
+   12	    }
+   13	}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+2012-06-04 23:51 src/edu/ucsb/cs56/S12/ernestocojulun/issue774/HangmanCLI.java Page 1
+
+
+    1	package edu.ucsb.cs56.S12.ernestocojulun.issue774;
+    2	import java.io.*;
+    3	import java.util.*;
+    4	/**
+    5	   HangmanCLI runs a simulated hang man game and checks for errors
+    6	 */
+    7	public class HangmanCLI implements HangmanInterface {
+    8	    private Scanner scan;
+    9	    private String word;
+   10	    private char letter;
+   11	    private HangmanGame hg;
+   12	
+   13	    public HangmanCLI(HangmanGame hg) {
+   14		this.hg = hg;
+   15	    }
+   16	
+   17	    //begins the game and does error checking
+   18	
+   19	    public void play() {
+   20	        scan = new Scanner(System.in);
+   21	
+   22		while((hg.getWrongAttemptsLeft() != 0) && !hg.hasWon()) {
+   23	            System.out.println(getGallows());
+   24	            System.out.println(hg.getBoard());
+   25	
+   26	            System.out.print("Guess a letter: ");
+   27	            System.out.flush();
+   28		    word = scan.nextLine();
+   29	
+   30	            if(word.length() < 1) {
+   31	                System.out.println("Must type something.");
+   32	                continue;
+   33	            } else if(word.length() > 1) {
+   34	                System.out.println("Do not type more than one letter at a time.");
+   35			continue;
+   36	            }
+   37	
+   38	            letter = word.charAt(0);
+   39	            	    
+   40		    try{
+   41			if(hg.guessLetter(letter) == true)
+   42			    System.out.println("Good Guess!");
+   43			else
+   44			    System.out.println("wrongAttemptsLeft left: " + hg.getWrongAttemptsLeft());
+   45		    } catch(AlreadyTriedException ex) {
+   46			System.out.println("You have already tried that letter, please try another one.");
+   47		    }
+   48	
+   49		    if(hg.hasWon())
+   50			System.out.println("Congratulations, You have won!");
+   51	
+   52	            if(hg.hasLost()) {
+   53	                System.out.println(getGallows());
+   54	                System.out.println(hg.getBoard());
+   55			System.out.println("Sorry, you have lost!");
+   56	                System.out.println("The secret word was " + hg.getSecretWord());
+
+
+
+
+
+
+
+2012-06-04 23:51 src/edu/ucsb/cs56/S12/ernestocojulun/issue774/HangmanCLI.java Page 2
+
+
+   57	                System.out.println("Try better next time!");
+   58	            }
+   59	        }
+   60	    }
+   61	
+   62	    //Print the hangman image on console                                                                                                            
+   63	    private String getGallows() {
+   64	        String gallow[] = new String[7];
+   65	
+   66	        gallow[0] = "    |---|\n    o   |\n   /|\\  |\n   /_\\__|_\n";
+   67	        gallow[1] = "    |---|\n    o   |\n   /|\\  |\n   /____|_\n";
+   68	        gallow[2] = "    |---|\n    o   |\n   /|\\  |\n    ____|_\n";
+   69	        gallow[3] = "    |---|\n    o   |\n   /|   |\n    ____|_\n";
+   70	        gallow[4] = "    |---|\n    o   |\n   /    |\n    ____|_\n";
+   71	        gallow[5] = "    |---|\n    o   |\n        |\n    ____|_\n";
+   72	        gallow[6] = "    |---|\n        |\n        |\n    ____|_\n";
+   73	
+   74	        return gallow[hg.getWrongAttemptsLeft()];
+   75	    }
+   76	}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+2012-06-04 23:51 src/edu/ucsb/cs56/S12/ernestocojulun/issue774/HangmanGame.java Page 1
+
+
+    1	package edu.ucsb.cs56.S12.ernestocojulun.issue774;
+    2	import java.io.*;
+    3	import java.util.*;
+    4	
+    5	/**
+    6	 HangmanGame handles a game session (with just one word).
+    7	
+    8	*/
+    9	public class HangmanGame {
+   10	    private ArrayList<Character> wrongLetters = new ArrayList<Character>(0);
+   11	    private int wrongAttemptsLeft = 6;
+   12	    private String secretWord;
+   13	    private boolean [] letters;
+   14	
+   15	
+   16	    public HangmanGame(String secretWord) {
+   17	        this.secretWord = secretWord;
+   18	        this.letters = new boolean[secretWord.length()];
+   19	        Arrays.fill(letters, false);
+   20	
+   21	    }
+   22	
+   23	    /**
+   24	     *@return true if the letter is in the word and false if the letter is not in theword
+   25	     *@throws AlreadyTriedException if the letter inputted has already been guessed
+   26	     */ 
+   27	
+   28	    public boolean guessLetter(char letter) throws AlreadyTriedException {
+   29	        boolean letterIsInWord = secretWord.indexOf((int) letter) != -1;
+   30	
+   31	        if(letterIsInWord) {
+   32	            flipLetters(letter);
+   33	            return true;
+   34	        } else {
+   35	            if(wrongLetters.contains(letter))  {
+   36			throw new AlreadyTriedException();
+   37	            } else {
+   38	                wrongLetters.add(letter);
+   39	                wrongAttemptsLeft--;
+   40			return false;
+   41	            }
+   42	        }
+   43	    }
+   44	
+   45	    // flips * to letters
+   46	    private void flipLetters(char letter) {
+   47	        for(int i = 0; i < secretWord.length(); i++) {
+   48	            if(letter == secretWord.charAt(i))
+   49	                letters[i] = true;
+   50	        }
+   51	    }
+   52	    
+   53	    //Make a word with * and if player gets right, it reveals the letters.
+   54	
+   55	    /**
+   56	     *@return the word with any correct letters the player may have guessed
+
+
+
+
+
+
+
+2012-06-04 23:51 src/edu/ucsb/cs56/S12/ernestocojulun/issue774/HangmanGame.java Page 2
+
+
+   57	     */
+   58	 
+   59	    public String getBoard() {
+   60	        String revealedLetters = "";
+   61	
+   62	        for(int i = 0; i < secretWord.length(); i++) {
+   63	            if(letters[i] == false)
+   64	                revealedLetters += "*";
+   65	            else
+   66	                revealedLetters += secretWord.substring(i, i+1);
+   67	        }
+   68	        return revealedLetters;
+   69	    }
+   70	
+   71	    //Check if all the values are True or not 
+   72	
+   73	    /**
+   74	     *@return true if the player has won and false if the player has not won
+   75	     */
+   76	
+   77	    public boolean hasWon() {
+   78	        for(int i = 0; i < letters.length; i++) {
+   79	            if(!letters[i])
+   80	                return false;
+   81	        }
+   82	        return true;
+   83	    }
+   84	
+   85	    //Check if you lost the game
+   86	
+   87	    /**
+   88	     *@return true if the player lost the game and false if the player has not lost the game
+   89	     */
+   90	    public boolean hasLost() {
+   91	        return wrongAttemptsLeft == 0;
+   92	    }
+   93	
+   94	    /**
+   95	     *@return the amount of wront attempts the player has left
+   96	     */
+   97	
+   98	    public int getWrongAttemptsLeft() {
+   99	        return wrongAttemptsLeft;
+  100	    }
+  101	
+  102	    /**
+  103	     *@return the word the player must guess
+  104	     */
+  105	
+  106	    public String getSecretWord() {
+  107		return secretWord;
+  108	    }
+  109	
+  110	    public String getSecretLetter() {
+  111		int i = 0;
+  112	
+
+
+
+
+
+
+
+2012-06-04 23:51 src/edu/ucsb/cs56/S12/ernestocojulun/issue774/HangmanGame.java Page 3
+
+
+  113		return "stub";
+  114	    }
+  115	
+  116	}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+2012-06-05 00:09 src/edu/ucsb/cs56/S12/ernestocojulun/issue774/HangmanGameTest.java Page 1
+
+
+    1	package edu.ucsb.cs56.S12.ernestocojulun.issue774;
+    2	import java.io.*;
+    3	import java.util.*;
+    4	
+    5	import org.junit.* ;
+    6	import static org.junit.Assert.* ;
+    7	
+    8	/**
+    9	
+   10	HangmanGameTest is the test class to see if output is what it should be
+   11	 */
+   12	public class HangmanGameTest {
+   13	    @Test
+   14	    public void testGameSessionWin() throws AlreadyTriedException {
+   15	        HangmanGame hg = new HangmanGame("magic");
+   16	        assertEquals("*****", hg.getBoard());
+   17	        assertEquals(6, hg.getWrongAttemptsLeft());
+   18	        assertFalse(hg.hasWon());
+   19	        assertFalse(hg.hasLost());
+   20	
+   21	        hg.guessLetter('m');
+   22	        assertEquals("m****", hg.getBoard());
+   23	        assertEquals(6, hg.getWrongAttemptsLeft());
+   24	        assertFalse(hg.hasWon());
+   25	        assertFalse(hg.hasLost());
+   26	
+   27	        hg.guessLetter('a');
+   28	        assertEquals("ma***", hg.getBoard());
+   29	        assertEquals(6, hg.getWrongAttemptsLeft());
+   30	        assertFalse(hg.hasWon());
+   31	        assertFalse(hg.hasLost());
+   32	
+   33	        hg.guessLetter('s');
+   34	        assertEquals("ma***", hg.getBoard());
+   35	        assertEquals(5, hg.getWrongAttemptsLeft());
+   36	        assertFalse(hg.hasWon());
+   37	        assertFalse(hg.hasLost());
+   38	
+   39		boolean thrown = false;
+   40		try {
+   41		    hg.guessLetter('s');
+   42		} catch(AlreadyTriedException e) {
+   43		    thrown = true;
+   44		}
+   45		assertTrue(thrown);
+   46	        assertEquals("ma***", hg.getBoard());
+   47	        assertEquals(5, hg.getWrongAttemptsLeft()); // will not take out an attempt if already used letter
+   48	        assertFalse(hg.hasWon());
+   49	        assertFalse(hg.hasLost());
+   50	
+   51	        hg.guessLetter('c');
+   52	        assertEquals("ma**c", hg.getBoard());
+   53	        assertEquals(5, hg.getWrongAttemptsLeft());
+   54	        assertFalse(hg.hasWon());
+   55	        assertFalse(hg.hasLost());
+   56	
+
+
+
+
+
+
+
+2012-06-05 00:09 src/edu/ucsb/cs56/S12/ernestocojulun/issue774/HangmanGameTest.java Page 2
+
+
+   57	        hg.guessLetter('g');
+   58	        assertEquals("mag*c", hg.getBoard());
+   59	        assertEquals(5, hg.getWrongAttemptsLeft());
+   60	        assertFalse(hg.hasWon());
+   61	        assertFalse(hg.hasLost());
+   62	
+   63	        hg.guessLetter('i');
+   64	        assertEquals("magic", hg.getBoard());
+   65	        assertEquals(5, hg.getWrongAttemptsLeft());
+   66	        assertTrue(hg.hasWon());
+   67	        assertFalse(hg.hasLost());
+   68	    }
+   69	
+   70	    @Test
+   71	    public void testGameSessionLose() throws AlreadyTriedException {
+   72	        HangmanGame hg = new HangmanGame("magic");
+   73	        assertEquals("*****", hg.getBoard());
+   74	        assertEquals(6, hg.getWrongAttemptsLeft());
+   75	        assertFalse(hg.hasWon());
+   76	        assertFalse(hg.hasLost());
+   77	
+   78	        hg.guessLetter('b');
+   79	        assertEquals("*****", hg.getBoard());
+   80	        assertEquals(5, hg.getWrongAttemptsLeft());
+   81	        assertFalse(hg.hasWon());
+   82	        assertFalse(hg.hasLost());
+   83	
+   84	        hg.guessLetter('d');
+   85	        assertEquals("*****", hg.getBoard());
+   86	        assertEquals(4, hg.getWrongAttemptsLeft());
+   87	        assertFalse(hg.hasWon());
+   88	        assertFalse(hg.hasLost());
+   89	
+   90	        hg.guessLetter('e');
+   91	        assertEquals("*****", hg.getBoard());
+   92	        assertEquals(3, hg.getWrongAttemptsLeft());
+   93	        assertFalse(hg.hasWon());
+   94	        assertFalse(hg.hasLost());
+   95	
+   96	        hg.guessLetter('f');
+   97	        assertEquals(2, hg.getWrongAttemptsLeft());
+   98	        assertFalse(hg.hasWon());
+   99	        assertFalse(hg.hasLost());
+  100	
+  101	        hg.guessLetter('h');
+  102	        assertEquals("*****", hg.getBoard());
+  103	        assertEquals(1, hg.getWrongAttemptsLeft());
+  104	        assertFalse(hg.hasWon());
+  105	        assertFalse(hg.hasLost());
+  106	
+  107	        hg.guessLetter('j');
+  108	        assertEquals("*****", hg.getBoard());
+  109	        assertEquals(0, hg.getWrongAttemptsLeft());
+  110	        assertFalse(hg.hasWon());
+  111	        assertTrue(hg.hasLost());
+  112	    }
+
+
+
+
+
+
+
+2012-06-05 00:09 src/edu/ucsb/cs56/S12/ernestocojulun/issue774/HangmanGameTest.java Page 3
+
+
+  113	
+  114	}
+  115	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+2012-06-05 01:32 src/edu/ucsb/cs56/S12/ernestocojulun/issue774/HangmanGUI.java Page 1
+
+
+    1	package edu.ucsb.cs56.S12.ernestocojulun.issue774;
+    2	import java.io.*;
+    3	import java.lang.*;
+    4	import java.awt.*;
+    5	import java.awt.event.*;
+    6	import java.util.*;
+    7	import javax.swing.*;
+    8	import java.applet.*;
+    9	
+   10	import javax.sound.sampled.AudioFormat;
+   11	import javax.sound.sampled.AudioInputStream;
+   12	import javax.sound.sampled.AudioSystem;
+   13	import javax.sound.sampled.DataLine;
+   14	import javax.sound.sampled.LineUnavailableException;
+   15	import javax.sound.sampled.SourceDataLine;
+   16	
+   17	/** HangmanGUI.java is a program that has added features from a previous Hangman game
+   18	it now has sound
+   19	 *@author Gyeonghun Lee
+   20	 *@author David Borden and Ernesto Cojulun
+   21	 *@version 05/19/12 for Choice Points 1, cs56, S12
+   22	 */
+   23	
+   24	//Hangman GUI version class
+   25	public class HangmanGUI extends JFrame implements HangmanInterface {
+   26	
+   27	    //public static final soundOn = true;
+   28	
+   29	    private HangmanGame hg;
+   30	    private JPanel gallow;
+   31	    private JLabel letter, board, message;
+   32	    private JTextField lettertf;
+   33	    private JButton submit, exit, restart, instructions, hint;
+   34	    private WordList wordList;
+   35	    private Panel upper, lower;
+   36	    private JFrame f;        
+   37	    //Button handler
+   38	    private SubmitButtonHandler submitHandler;
+   39	    private ExitButtonHandler exitHandler;
+   40	    private RestartButtonHandler restartHandler;
+   41	    private instructButtonHandler instructHandler;
+   42	    private hintButtonHandler hintHandler;
+   43	        
+   44	    /**
+   45	     *@param wordList takes in the wordList.txt by default but will also take in a user created wordList
+   46	     */
+   47	
+   48	    public HangmanGUI(WordList wordList) throws IOException {
+   49		hg = new HangmanGame(wordList.getRandomLine());
+   50		this.wordList = wordList;
+   51	
+   52		
+   53	       
+   54	    }
+   55	    
+   56	    public void play() {
+
+
+
+
+
+
+
+2012-06-05 01:32 src/edu/ucsb/cs56/S12/ernestocojulun/issue774/HangmanGUI.java Page 2
+
+
+   57		
+   58		f = new JFrame();
+   59		f.setSize(450, 400);
+   60		Panel upper = new Panel();
+   61	
+   62		upper.setLayout(new BoxLayout(upper,BoxLayout.Y_AXIS));
+   63		
+   64	     	gallow = new hanger();
+   65	    	message = new JLabel();
+   66		board = new JLabel(hg.getBoard());
+   67		letter = new JLabel("Guess a letter: ");
+   68		lettertf = new JTextField(3);
+   69		
+   70	
+   71		submit = new JButton("Submit");
+   72		submitHandler = new SubmitButtonHandler();
+   73		submit.addActionListener(submitHandler);
+   74		f.getRootPane().setDefaultButton(submit); //Use "Enter key" as default for submit button.
+   75		f.getContentPane().add(upper,BorderLayout.NORTH);	
+   76		//////////////////////////////////////////////
+   77	
+   78	
+   79		gallow.setAlignmentY(Component.BOTTOM_ALIGNMENT);
+   80		message.setAlignmentY(Component.BOTTOM_ALIGNMENT);
+   81		board.setAlignmentY(Component.BOTTOM_ALIGNMENT);
+   82		letter.setAlignmentY(Component.BOTTOM_ALIGNMENT);
+   83		lettertf.setAlignmentY(Component.BOTTOM_ALIGNMENT);
+   84		submit.setAlignmentY(Component.BOTTOM_ALIGNMENT);
+   85	
+   86		//add items to the upper pannel
+   87		upper.add(gallow);
+   88		upper.add(message);
+   89		upper.add(board);
+   90		upper.add(letter);
+   91		upper.add(lettertf);
+   92		upper.add(submit);
+   93		//	submit.setAlignmentX(Component.CENTER_ALIGNMENT);	
+   94		
+   95		Panel lower = new Panel();
+   96		lower.setLayout(new FlowLayout());
+   97	
+   98		instructions = new JButton("Instructions");
+   99		instructHandler = new instructButtonHandler();
+  100		instructions.addActionListener(instructHandler);
+  101	
+  102		exit = new JButton("Exit");
+  103		exitHandler = new ExitButtonHandler();
+  104		exit.addActionListener(exitHandler);
+  105		
+  106		restart = new JButton("Restart");
+  107		restartHandler = new RestartButtonHandler();
+  108		restart.addActionListener(restartHandler);
+  109	
+  110		hint = new JButton("Hint");
+  111	        hintHandler = new hintButtonHandler();
+  112		hint.addActionListener(hintHandler);
+
+
+
+
+
+
+
+2012-06-05 01:32 src/edu/ucsb/cs56/S12/ernestocojulun/issue774/HangmanGUI.java Page 3
+
+
+  113	
+  114		f.getContentPane().add(lower,BorderLayout.SOUTH);
+  115	
+  116		//add buttons to lower pannel
+  117		lower.add(instructions);
+  118		lower.add(exit);
+  119		lower.add(restart);
+  120		lower.add(hint);
+  121		
+  122		f.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+  123	        f.applyComponentOrientation(ComponentOrientation.LEFT_TO_RIGHT);
+  124		f.setVisible(true);
+  125		f.setTitle("Hangman Game: GUI Version");
+  126		//	f.pack();
+  127	    }
+  128	
+  129		//Specify handlers for each button and add (register) ActionListeners to each button.
+  130	    
+  131	    //Submit button
+  132	    public class SubmitButtonHandler implements ActionListener {
+  133		public void actionPerformed(ActionEvent e) {
+  134		    String word = lettertf.getText();   
+  135		    AePlayWave applause = new AePlayWave("Applause");
+  136		    // start thread to play sound file
+  137		     AePlayWave glass = new AePlayWave("Glass.aiff");
+  138		     AePlayWave sosumi = new AePlayWave("Sosumi.aiff");
+  139		     AePlayWave boo = new AePlayWave("BOO.wav");
+  140	
+  141		    lettertf.requestFocusInWindow();
+  142		    
+  143		    
+  144		    if(word.length() < 1) {
+  145			message.setText("Must type something!");
+  146			sosumi.start();
+  147		
+  148			return;
+  149		    } else if(word.length() > 1) {
+  150			message.setText("Do not type more than one letter at a time.");
+  151		      
+  152			sosumi.start();
+  153			lettertf.setText("");
+  154		
+  155			return;
+  156		    }
+  157		   
+  158		    char letter = word.charAt(0);
+  159		    lettertf.setText("");
+  160		    
+  161		    try{
+  162			if(hg.guessLetter(letter) == true) {
+  163			    message.setText("Good Guess!");
+  164			    glass.start();
+  165			 
+  166			}
+  167			
+  168			else
+
+
+
+
+
+
+
+2012-06-05 01:32 src/edu/ucsb/cs56/S12/ernestocojulun/issue774/HangmanGUI.java Page 4
+
+
+  169		        {
+  170			    message.setText("wrongAttemptsLeft left: " + hg.getWrongAttemptsLeft());
+  171			    // if (soundOn) {
+  172				//	sound.playSound( Main.class.getClassLoader().getResourceAsStream("resources/Glass.aiff"));
+  173			    // }
+  174			    sosumi.start();
+  175			    gallow.repaint();
+  176	
+  177			}
+  178		
+  179		    } catch(AlreadyTriedException ex) {
+  180			message.setText("You have already tried that letter, please try another one.");
+  181			//	if (soundOn) {
+  182			    //sound.playSound( Main.class.getClassLoader().getResourceAsStream("resources/Glass.aiff"));
+  183			//	}
+  184	
+  185			sosumi.start();
+  186		
+  187	
+  188		    }
+  189		   
+  190		    
+  191		    board.setText(hg.getBoard());
+  192		    
+  193		    if(hg.hasWon()) {
+  194			submit.setEnabled(false);
+  195			message.setText("Congratulations, You have won!");
+  196			//	if (soundOn) {
+  197			    // sound.playSound( Main.class.getClassLoader().getResourceAsStream("resources/BOO.wav"));
+  198			//	} 
+  199			applause.start();
+  200		
+  201		    }
+  202		    
+  203		    if(hg.hasLost()) {
+  204			submit.setEnabled(false);
+  205			message.setText("Sorry, you have lost!" + "  " + "The secret word was " + hg.getSecretWord() + ".  " + "Try again!");
+  206		
+  207			//	if (soundOn) {
+  208			    //  sound.playSound( Main.class.getClassLoader().getResourceAsStream("resources/Glass.aiff"));
+  209			//	}
+  210			boo.start();
+  211			
+  212		    }
+  213		  
+  214		    gallow.repaint();
+  215		}
+  216	    }
+  217	
+  218	    //Display a screen of instructions
+  219	
+  220	    public class instructButtonHandler implements ActionListener {
+  221		public void actionPerformed(ActionEvent e) {
+  222		    JOptionPane.showMessageDialog(f,"Each * represents a letter in a word. Your task\nis to guess each letter in the word until you\ncomplete the word. Each wrong guess adds a \nbody part to the hanger. Once an entire\nman is created from wrong guesses\n(6 wrong guesses) then you lose the game.\nIf you guess the word before then, you win!\n To get a letter that is in the word press the hint button and a pop-up button\n will display with a letter from a random position in the word","Instructions", JOptionPane.INFORMATION_MESSAGE);
+  223		}
+  224	    }
+
+
+
+
+
+
+
+2012-06-05 01:32 src/edu/ucsb/cs56/S12/ernestocojulun/issue774/HangmanGUI.java Page 5
+
+
+  225	    
+  226	    //Exit from the game
+  227	    public class ExitButtonHandler implements ActionListener {
+  228		public void actionPerformed(ActionEvent e) {
+  229		    System.exit(0);
+  230		}
+  231	    }
+  232	    
+  233	    //Start the new game
+  234	    public class RestartButtonHandler implements ActionListener {
+  235		public void actionPerformed(ActionEvent e) {
+  236		    lettertf.requestFocusInWindow();
+  237		    submit.setEnabled(true);
+  238		    
+  239		    try {
+  240			hg = new HangmanGame(wordList.getRandomLine());
+  241			board.setText(hg.getBoard());
+  242			message.setText("");
+  243			repaint();
+  244		    } catch(IOException ex) {
+  245			throw new RuntimeException(ex);
+  246		    }
+  247		}
+  248	    }
+  249	
+  250	    //A pop-up window displays a letter that is in the word
+  251	    public class hintButtonHandler implements ActionListener {
+  252		public void actionPerformed(ActionEvent e) {
+  253		    int wordlength = hg.getSecretWord().length();
+  254		    int randomNum = (int) (Math.random()*(wordlength));
+  255	
+  256		   char displayletter = hg.getSecretWord().charAt(randomNum);
+  257		    JOptionPane.showMessageDialog(f,"try not yo use hints >:0 \n but Your hint is  "+displayletter );
+  258		}
+  259	    }
+  260		
+  261	   
+  262	    
+  263	    //Drawing a hangman with a gallow
+  264	    public class hanger extends JPanel {
+  265		hanger() {
+  266		    setPreferredSize(new Dimension(150,150));
+  267		}
+  268	
+  269		/**
+  270		 *@param g the Hangman graphic that is drawn on the screen which changes depending at what stage you are in the game
+  271		 */
+  272		
+  273		public void paintComponent (Graphics g) {
+  274		    super.paintComponent(g);
+  275		    g.setColor(Color.BLACK);
+  276		    g.drawRect(10,70, 50, 5);
+  277		    g.drawLine(35, 70, 35, 5);
+  278		    g.drawLine(35,5,70,5);
+  279	
+  280		    
+
+
+
+
+
+
+
+2012-06-05 01:32 src/edu/ucsb/cs56/S12/ernestocojulun/issue774/HangmanGUI.java Page 6
+
+
+  281		    if(hg.getWrongAttemptsLeft() < 6)
+  282			g.drawOval(60, 10, 20, 20);
+  283		    if(hg.getWrongAttemptsLeft() < 5)
+  284			g.drawLine(70, 30, 70, 60);
+  285		    if(hg.getWrongAttemptsLeft() < 4)
+  286			g.drawLine(70,60,50,65);
+  287		    if(hg.getWrongAttemptsLeft() < 3)
+  288			g.drawLine(70,60,90,65);
+  289		    if(hg.getWrongAttemptsLeft() < 2)
+  290			g.drawLine(70, 30, 50, 25);
+  291		    if(hg.getWrongAttemptsLeft() < 1)
+  292			g.drawLine(70, 30, 90, 25);
+  293		}
+  294	    } // inner class hanger
+  295	}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+2012-06-05 00:11 src/edu/ucsb/cs56/S12/ernestocojulun/issue774/HangmanInterface.java Page 1
+
+
+    1	package edu.ucsb.cs56.S12.ernestocojulun.issue774;
+    2	/**
+    3	Hangman Interface
+    4	*/
+    5	
+    6	
+    7	
+    8	public interface HangmanInterface {
+    9	    public abstract void play();
+   10	}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+2012-06-04 23:51 src/edu/ucsb/cs56/S12/ernestocojulun/issue774/Main.java Page 1
+
+
+    1	package edu.ucsb.cs56.S12.ernestocojulun.issue774;
+    2	import java.io.*;
+    3	import java.util.*;
+    4	import java.awt.*;
+    5	
+    6	/** HangmanGUI.java is a Hangman game
+    7	 *@author Gyeonghun Lee
+    8	 *@version 03/17/12 for Choice Points, cs56, W12
+    9	*/
+   10	
+   11	
+   12	/**
+   13	   Main is a wrapper around HangmanGame that can choose random words from a file.
+   14	
+   15	 */
+   16	public class Main {
+   17	    private static File wordListFile; // null if using default
+   18	
+   19	    //main method that would run the game
+   20	    public static void main(String [] args) throws IOException, InterruptedException {
+   21	
+   22	        if(args.length == 1) {
+   23	            wordListFile = new File(args[0]);
+   24	        } else {
+   25	            wordListFile = null;
+   26	        }
+   27	
+   28		WordList wordList = new WordList(wordListFile);
+   29		//while(true) {
+   30		    String secretWord = wordList.getRandomLine();
+   31		    HangmanGame hg = new HangmanGame(secretWord);
+   32		    new HangmanGUI(wordList).play();
+   33	
+   34		    //Scanner scan = new Scanner(System.in);
+   35		    //String word = scan.nextLine();
+   36		    //}
+   37	    }
+   38	}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+2012-06-05 00:11 src/edu/ucsb/cs56/S12/ernestocojulun/issue774/WordList.java Page 1
+
+
+    1	package edu.ucsb.cs56.S12.ernestocojulun.issue774;
+    2	import java.io.*;
+    3	import java.util.*;
+    4	
+    5	
+    6	    /**
+    7	      takes in a file that contains a word list in which the word to be guessed is chosen.
+    8	     */
+    9	public class WordList {
+   10	    private File wordListFile;
+   11	
+   12	
+   13	    public WordList(File wordListFile) {
+   14		this.wordListFile = wordListFile;
+   15	    }
+   16	    
+   17	    //Pick a random word from counted lines
+   18	
+   19	    /**
+   20	     *@return a random word from the word list
+   21	     *@throws IOException If an input or output exception occured
+   22	     */
+   23	
+   24	    public String getRandomLine() throws IOException {
+   25	        int lineCount = getNumberOfLines();
+   26	        int lineNumber = new Random().nextInt(lineCount);
+   27	
+   28	        BufferedReader reader = new BufferedReader(new InputStreamReader(getWordListInputStream()));
+   29	
+   30	        try {
+   31	            for(int i=0; i < lineNumber; i++) {
+   32	                reader.readLine();
+   33	            }
+   34	            return reader.readLine();
+   35	        } finally {
+   36	            reader.close();
+   37	        }
+   38	    }
+   39	
+   40	    //Count the number of lines                                                                                                                     
+   41	    /**
+   42	     *@return the number of lines in the word list
+   43	     *@throws IOException If an input or output exception occured
+   44	     */
+   45	
+   46	    private int getNumberOfLines() throws IOException {
+   47	        BufferedReader reader = new BufferedReader(new InputStreamReader(getWordListInputStream()));
+   48	
+   49	        try {
+   50	            int count = 0;
+   51	            while(reader.readLine() != null) {
+   52	                count++;
+   53	            }
+   54	            return count;
+   55	        } finally {
+   56	            reader.close();
+
+
+
+
+
+
+
+2012-06-05 00:11 src/edu/ucsb/cs56/S12/ernestocojulun/issue774/WordList.java Page 2
+
+
+   57	        }
+   58	    }
+   59	
+   60	    /**
+   61	     *@return the input stream of the word list
+   62	     *@throws FileNotFoundException if the word list file can not be found
+   63	     */
+   64	
+   65	    private InputStream getWordListInputStream() throws FileNotFoundException {
+   66	        if(wordListFile == null) {
+   67	            // gets the WordsList.txt file from the class path                                                                                       
+   68	            return Main.class.getClassLoader().getResourceAsStream("resources/WordsList.txt");
+   69	        } else {
+   70	            return new FileInputStream(wordListFile);
+   71	        }
+   72	    }
+   73	}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
